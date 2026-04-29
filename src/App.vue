@@ -1,85 +1,226 @@
-<script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
-import HelloWorld from './components/HelloWorld.vue'
-</script>
-
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
-
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
-
-      <nav>
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/about">About</RouterLink>
-      </nav>
+  <div class="app-container">
+    <div class="header">
+      <h1>👋 欢迎使用 作业出题</h1>
+      <p class="subtitle">请上传作业票照片，我们将自动识别并生成对应考题。</p>
     </div>
-  </header>
 
-  <RouterView />
+    <div class="upload-container">
+      <el-upload
+        class="upload-area"
+        drag
+        action="#"
+        :auto-upload="false"
+        :show-file-list="true"
+        :limit="1"
+        :on-change="handleFileChange"
+        :on-exceed="handleExceed"
+        accept="image/*"
+        ref="uploadRef"
+      >
+        <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+        <div class="el-upload__text">
+          将作业票图片拖到此处，或 <em>点击上传</em>
+        </div>
+      </el-upload>
+    </div>
+
+    <div class="action-container">
+      <el-button type="primary" size="large" @click="submitUpload" :loading="loading" class="submit-btn">
+        <el-icon style="margin-right: 5px"><Promotion /></el-icon> 开始生成
+      </el-button>
+    </div>
+
+    <div v-if="result" class="result-container">
+      <el-card class="box-card">
+        <template #header>
+          <div class="card-header">
+            <span>识别结果</span>
+            <span class="time-cost">耗时: {{ costTimeMs }} ms</span>
+          </div>
+        </template>
+        <div class="result-content">
+          <pre>{{ result }}</pre>
+        </div>
+        <div class="processed-image" v-if="processedImage">
+          <p>处理后图片 (双边滤波):</p>
+          <img :src="processedImage" alt="Processed Image" style="max-width: 100%; border-radius: 8px;" />
+        </div>
+      </el-card>
+    </div>
+  </div>
 </template>
 
+<script setup lang="ts">
+import { ref } from 'vue'
+import { UploadFilled, Promotion } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import type { UploadInstance, UploadProps, UploadFile } from 'element-plus'
+import axios from 'axios'
+
+const uploadRef = ref<UploadInstance>()
+const fileToUpload = ref<File | null>(null)
+const loading = ref(false)
+const result = ref('')
+const costTimeMs = ref(0)
+const processedImage = ref('')
+
+const handleFileChange: UploadProps['onChange'] = (uploadFile: UploadFile) => {
+  if (uploadFile.raw) {
+    fileToUpload.value = uploadFile.raw
+  }
+}
+
+const handleExceed: UploadProps['onExceed'] = (files) => {
+  uploadRef.value?.clearFiles()
+  const file = files[0] as unknown as UploadFile
+  uploadRef.value?.handleStart(file)
+}
+
+const submitUpload = async () => {
+  if (!fileToUpload.value) {
+    ElMessage.warning('请先选择一张图片')
+    return
+  }
+
+  loading.value = true
+  result.value = ''
+  processedImage.value = ''
+
+  const formData = new FormData()
+  formData.append('file', fileToUpload.value)
+
+  try {
+    const response = await axios.post('http://localhost:8080/api/image/analyze', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+
+    if (response.data.success) {
+      result.value = response.data.result
+      costTimeMs.value = response.data.costTimeMs
+      processedImage.value = response.data.processedImage
+      ElMessage.success('识别成功')
+    } else {
+      ElMessage.error(response.data.error || '识别失败')
+    }
+  } catch (error) {
+    console.error(error)
+    ElMessage.error('请求出错，请检查后端服务是否启动')
+  } finally {
+    loading.value = false
+  }
+}
+</script>
+
 <style scoped>
-header {
-  line-height: 1.5;
-  max-height: 100vh;
+.app-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px;
+  background-color: #fff;
+  min-height: 100vh;
 }
 
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
-}
-
-nav {
-  width: 100%;
-  font-size: 12px;
+.header {
   text-align: center;
-  margin-top: 2rem;
+  margin-bottom: 40px;
 }
 
-nav a.router-link-exact-active {
-  color: var(--color-text);
+.header h1 {
+  font-size: 28px;
+  color: #303133;
+  margin: 0 0 10px 0;
+  font-weight: 600;
 }
 
-nav a.router-link-exact-active:hover {
-  background-color: transparent;
+.subtitle {
+  color: #909399;
+  font-size: 14px;
+  margin: 0;
 }
 
-nav a {
-  display: inline-block;
-  padding: 0 1rem;
-  border-left: 1px solid var(--color-border);
+.upload-container {
+  width: 100%;
+  max-width: 600px;
+  margin-bottom: 30px;
 }
 
-nav a:first-of-type {
-  border: 0;
+:deep(.el-upload-dragger) {
+  border: 1px dashed #dcdfe6;
+  border-radius: 8px;
+  background-color: #fafafa;
+  padding: 40px 0;
 }
 
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
+:deep(.el-upload-dragger:hover) {
+  border-color: #409eff;
+}
 
-  .logo {
-    margin: 0 2rem 0 0;
-  }
+.el-icon--upload {
+  font-size: 48px;
+  color: #a8abb2;
+  margin-bottom: 15px;
+}
 
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
+.action-container {
+  margin-bottom: 40px;
+}
 
-  nav {
-    text-align: left;
-    margin-left: -1rem;
-    font-size: 1rem;
+.submit-btn {
+  background: linear-gradient(90deg, #409eff, #36cfc9);
+  border: none;
+  border-radius: 20px;
+  padding: 12px 30px;
+  font-size: 16px;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+  transition: all 0.3s;
+}
 
-    padding: 1rem 0;
-    margin-top: 1rem;
-  }
+.submit-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(64, 158, 255, 0.4);
+  opacity: 0.9;
+}
+
+.result-container {
+  width: 100%;
+  max-width: 800px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.time-cost {
+  color: #67c23a;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.result-content pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  background-color: #f5f7fa;
+  padding: 15px;
+  border-radius: 4px;
+  color: #606266;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.processed-image {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.processed-image p {
+  color: #606266;
+  font-size: 14px;
+  margin-bottom: 10px;
 }
 </style>
