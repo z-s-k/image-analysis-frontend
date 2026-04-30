@@ -8,7 +8,6 @@
     <div class="upload-container">
       <el-upload
         class="upload-area"
-        drag
         action="#"
         :auto-upload="false"
         :show-file-list="true"
@@ -18,9 +17,11 @@
         accept="image/*"
         ref="uploadRef"
       >
-        <el-icon class="el-icon--upload"><upload-filled /></el-icon>
-        <div class="el-upload__text">
-          将作业票图片拖到此处，或 <em>点击上传</em>
+        <div class="upload-box">
+          <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+          <div class="el-upload__text">
+            <em>点击此处上传作业票图片</em>
+          </div>
         </div>
       </el-upload>
     </div>
@@ -91,7 +92,7 @@ const submitUpload = async () => {
   formData.append('file', fileToUpload.value)
 
   try {
-    const response = await axios.post('http://localhost:8080/api/image/analyze', formData, {
+    const response = await axios.post('http://localhost:7878/api/image/analyze', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
@@ -148,14 +149,22 @@ const submitUpload = async () => {
   margin-bottom: 30px;
 }
 
-:deep(.el-upload-dragger) {
+:deep(.el-upload) {
+  display: block;
+  width: 100%;
+}
+
+.upload-box {
   border: 1px dashed #dcdfe6;
   border-radius: 8px;
   background-color: #fafafa;
   padding: 40px 0;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.3s;
 }
 
-:deep(.el-upload-dragger:hover) {
+.upload-box:hover {
   border-color: #409eff;
 }
 
